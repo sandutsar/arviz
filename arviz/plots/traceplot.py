@@ -82,13 +82,18 @@ def plot_trace(
     compact: bool, optional
         Plot multidimensional variables in a single plot.
     compact_prop: str or dict {str: array_like}, optional
-        Tuple containing the property name and the property values to distinguish different
-        dimensions with compact=True
+         Defines the property name and the property values to distinguish different
+        dimensions with compact=True.
+        When compact=True it defaults to color, it is
+        ignored otherwise.
     combined: bool, optional
         Flag for combining multiple chains into a single line. If False (default), chains will be
         plotted separately.
     chain_prop: str or dict {str: array_like}, optional
-        Tuple containing the property name and the property values to distinguish different chains
+        Defines the property name and the property values to distinguish different chains.
+        If compact=True it defaults to linestyle,
+        otherwise it uses the color to distinguish
+        different chains.
     legend: bool, optional
         Add a legend to the figure with the chain color code.
     plot_kwargs, fill_kwargs, rug_kwargs, hist_kwargs: dict, optional
@@ -174,7 +179,9 @@ def plot_trace(
         divergences = "top" if rug else "bottom"
     if divergences:
         try:
-            divergence_data = convert_to_dataset(data, group="sample_stats").diverging
+            divergence_data = convert_to_dataset(data, group="sample_stats").diverging.transpose(
+                "chain", "draw"
+            )
         except (ValueError, AttributeError):  # No sample_stats, or no `.diverging`
             divergences = None
 
@@ -201,7 +208,13 @@ def plot_trace(
     skip_dims = set(coords_data.dims) - {"chain", "draw"} if compact else set()
 
     plotters = list(
-        xarray_var_iter(coords_data, var_names=var_names, combined=True, skip_dims=skip_dims)
+        xarray_var_iter(
+            coords_data,
+            var_names=var_names,
+            combined=True,
+            skip_dims=skip_dims,
+            dim_order=["chain", "draw"],
+        )
     )
     max_plots = rcParams["plot.max_subplots"]
     max_plots = len(plotters) if max_plots is None else max(max_plots // 2, 1)

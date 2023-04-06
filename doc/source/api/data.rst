@@ -11,13 +11,12 @@ Inference library converters
 .. autosummary::
    :toctree: generated/
 
+   from_beanmachine
    from_cmdstan
    from_cmdstanpy
    from_emcee
    from_numpyro
    from_pyjags
-   from_pymc3
-   from_pymc3_predictions
    from_pyro
    from_pystan
 

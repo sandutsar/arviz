@@ -4,7 +4,9 @@ import warnings
 from collections.abc import Sequence
 
 import numpy as np
+import packaging
 import pandas as pd
+import scipy
 from scipy import stats
 
 from ..data import convert_to_dataset
@@ -65,7 +67,7 @@ def bfmi(data):
     dataset = convert_to_dataset(data, group="sample_stats")
     if not hasattr(dataset, "energy"):
         raise TypeError("Energy variable was not found.")
-    return _bfmi(dataset.energy)
+    return _bfmi(dataset.energy.transpose("chain", "draw"))
 
 
 def ess(
@@ -538,7 +540,13 @@ def _z_scale(ary):
     np.ndarray
     """
     ary = np.asarray(ary)
-    rank = stats.rankdata(ary, method="average")
+    if packaging.version.parse(scipy.__version__) < packaging.version.parse("1.10.0.dev0"):
+        rank = stats.rankdata(ary, method="average")
+    else:
+        # the .ravel part is only needed to overcom a bug in scipy 1.10.0.rc1
+        rank = stats.rankdata(  # pylint: disable=unexpected-keyword-arg
+            ary, method="average", nan_policy="omit"
+        )
     rank = _backtransform_ranks(rank)
     z = stats.norm.ppf(rank)
     z = z.reshape(ary.shape)
@@ -828,7 +836,7 @@ def _mcse_sd(ary):
         return np.nan
     ess = _ess_sd(ary)
     if _numba_flag:
-        sd = np.float(_sqrt(svar(np.ravel(ary), ddof=1), np.zeros(1)))
+        sd = float(_sqrt(svar(np.ravel(ary), ddof=1), np.zeros(1)))
     else:
         sd = np.std(ary, ddof=1)
     fac_mcse_sd = np.sqrt(np.exp(1) * (1 - 1 / ess) ** (ess - 1) - 1)
@@ -897,7 +905,7 @@ def _mc_error(ary, batches=5, circular=False):
                 else:
                     std = stats.circstd(ary, high=np.pi, low=-np.pi)
             elif _numba_flag:
-                std = np.float(_sqrt(svar(ary), np.zeros(1)))
+                std = float(_sqrt(svar(ary), np.zeros(1)))
             else:
                 std = np.std(ary)
             return std / np.sqrt(len(ary))

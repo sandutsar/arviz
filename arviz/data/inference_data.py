@@ -1,5 +1,6 @@
 # pylint: disable=too-many-lines,too-many-public-methods
 """Data structure for using netcdf groups with xarray."""
+import re
 import sys
 import uuid
 import warnings
@@ -9,7 +10,6 @@ from copy import copy as ccopy
 from copy import deepcopy
 from datetime import datetime
 from html import escape
-import re
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,7 +24,6 @@ from typing import (
     overload,
 )
 
-import netCDF4 as nc
 import numpy as np
 import xarray as xr
 from packaging import version
@@ -78,6 +77,13 @@ SUPPORTED_GROUPS_WARMUP = [
 SUPPORTED_GROUPS_ALL = SUPPORTED_GROUPS + SUPPORTED_GROUPS_WARMUP
 
 InferenceDataT = TypeVar("InferenceDataT", bound="InferenceData")
+
+
+def _compressible_dtype(dtype):
+    """Check basic dtypes for automatic compression."""
+    if dtype.kind == "V":
+        return all(_compressible_dtype(item) for item, _ in dtype.fields.values())
+    return dtype.kind in {"b", "i", "u", "f", "c", "S"}
 
 
 class InferenceData(Mapping[str, xr.Dataset]):
@@ -330,7 +336,9 @@ class InferenceData(Mapping[str, xr.Dataset]):
         return InferenceData.InferenceDataItemsView(self)
 
     @staticmethod
-    def from_netcdf(filename, group_kwargs=None, regex=False) -> "InferenceData":
+    def from_netcdf(
+        filename, *, engine="h5netcdf", group_kwargs=None, regex=False
+    ) -> "InferenceData":
         """Initialize object from a netcdf file.
 
         Expects that the file will have groups, each of which can be loaded by xarray.
@@ -342,6 +350,8 @@ class InferenceData(Mapping[str, xr.Dataset]):
         ----------
         filename : str
             location of netcdf file
+        engine : {"h5netcdf", "netcdf4"}, default "h5netcdf"
+            Library used to read the netcdf file.
         group_kwargs : dict of {str: dict}, optional
             Keyword arguments to be passed into each call of :func:`xarray.open_dataset`.
             The keys of the higher level should be group names or regex matching group
@@ -353,15 +363,28 @@ class InferenceData(Mapping[str, xr.Dataset]):
 
         Returns
         -------
-        InferenceData object
+        InferenceData
         """
         groups = {}
+        attrs = {}
+
+        if engine == "h5netcdf":
+            import h5netcdf
+        elif engine == "netcdf4":
+            import netCDF4 as nc
+        else:
+            raise ValueError(
+                f"Invalid value for engine: {engine}. Valid options are: h5netcdf or netcdf4"
+            )
 
         try:
-            with nc.Dataset(filename, mode="r") as data:
+            with h5netcdf.File(filename, mode="r") if engine == "h5netcdf" else nc.Dataset(
+                filename, mode="r"
+            ) as data:
                 data_groups = list(data.groups)
 
             for group in data_groups:
+                group_kws = {}
 
                 group_kws = {}
                 if group_kwargs is not None and regex is False:
@@ -370,17 +393,21 @@ class InferenceData(Mapping[str, xr.Dataset]):
                     for key, kws in group_kwargs.items():
                         if re.search(key, group):
                             group_kws = kws
+                group_kws.setdefault("engine", engine)
                 with xr.open_dataset(filename, group=group, **group_kws) as data:
                     if rcParams["data.load"] == "eager":
                         groups[group] = data.load()
                     else:
                         groups[group] = data
-            res = InferenceData(**groups)
-            return res
-        except OSError as e:  # pylint: disable=invalid-name
-            if e.errno == -101:
-                raise type(e)(
-                    str(e)
+
+            with xr.open_dataset(filename, engine=engine) as data:
+                attrs.update(data.load().attrs)
+
+            return InferenceData(attrs=attrs, **groups)
+        except OSError as err:
+            if err.errno == -101:
+                raise type(err)(
+                    str(err)
                     + (
                         " while reading a NetCDF file. This is probably an error in HDF5, "
                         "which happens because your OS does not support HDF5 file locking.  See "
@@ -388,13 +415,17 @@ class InferenceData(Mapping[str, xr.Dataset]):
                         "errno-101-netcdf-hdf-error-when-opening-netcdf-file#49317928"
                         " for a possible solution."
                     )
-                )
-            raise e
+                ) from err
+            raise err
 
     def to_netcdf(
-        self, filename: str, compress: bool = True, groups: Optional[List[str]] = None
+        self,
+        filename: str,
+        compress: bool = True,
+        groups: Optional[List[str]] = None,
+        engine: str = "h5netcdf",
     ) -> str:
-        """Write InferenceData to file using netcdf4.
+        """Write InferenceData to netcdf4 file.
 
         Parameters
         ----------
@@ -405,6 +436,8 @@ class InferenceData(Mapping[str, xr.Dataset]):
             saving and loading somewhat slower (default: True).
         groups : list, optional
             Write only these groups to netcdf file.
+        engine : {"h5netcdf", "netcdf4"}, default "h5netcdf"
+            Library used to read the netcdf file.
 
         Returns
         -------
@@ -412,6 +445,10 @@ class InferenceData(Mapping[str, xr.Dataset]):
             Location of netcdf file
         """
         mode = "w"  # overwrite first, then append
+        if self._attrs:
+            xr.Dataset(attrs=self._attrs).to_netcdf(filename, mode=mode, engine=engine)
+            mode = "a"
+
         if self._groups_all:  # check's whether a group is present or not.
             if groups is None:
                 groups = self._groups_all
@@ -420,14 +457,25 @@ class InferenceData(Mapping[str, xr.Dataset]):
 
             for group in groups:
                 data = getattr(self, group)
-                kwargs = {}
+                kwargs = {"engine": engine}
                 if compress:
-                    kwargs["encoding"] = {var_name: {"zlib": True} for var_name in data.variables}
+                    kwargs["encoding"] = {
+                        var_name: {"zlib": True}
+                        for var_name, values in data.variables.items()
+                        if _compressible_dtype(values.dtype)
+                    }
                 data.to_netcdf(filename, mode=mode, group=group, **kwargs)
                 data.close()
                 mode = "a"
-        else:  # creates a netcdf file for an empty InferenceData object.
-            empty_netcdf_file = nc.Dataset(filename, mode="w", format="NETCDF4")
+        elif not self._attrs:  # creates a netcdf file for an empty InferenceData object.
+            if engine == "h5netcdf":
+                import h5netcdf
+
+                empty_netcdf_file = h5netcdf.File(filename, mode="w")
+            elif engine == "netcdf4":
+                import netCDF4 as nc
+
+                empty_netcdf_file = nc.Dataset(filename, mode="w", format="NETCDF4")
             empty_netcdf_file.close()
         return filename
 
@@ -630,7 +678,7 @@ class InferenceData(Mapping[str, xr.Dataset]):
             for df in dfs_tail:
                 dfs = dfs.merge(df, how="outer", copy=False)
         else:
-            (dfs,) = dfs.values()
+            (dfs,) = dfs.values()  # pylint: disable=unbalanced-dict-unpacking
         return dfs
 
     def to_zarr(self, store=None):
@@ -676,6 +724,10 @@ class InferenceData(Mapping[str, xr.Dataset]):
 
         if not groups:
             raise TypeError("No valid groups found!")
+
+        # order matters here, saving attrs after the groups will erase the groups.
+        if self.attrs:
+            xr.Dataset(attrs=self.attrs).to_zarr(store=store, mode="w")
 
         for group in groups:
             # Create zarr group in store with same group name
@@ -727,7 +779,11 @@ class InferenceData(Mapping[str, xr.Dataset]):
         for key_group, _ in zarr_handle.groups():
             with xr.open_zarr(store=store, group=key_group) as data:
                 groups[key_group] = data.load() if rcParams["data.load"] == "eager" else data
-        return InferenceData(**groups)
+
+        with xr.open_zarr(store=store) as root:
+            attrs = root.attrs
+
+        return InferenceData(attrs=attrs, **groups)
 
     def __add__(self, other: "InferenceData") -> "InferenceData":
         """Concatenate two InferenceData objects."""
@@ -784,14 +840,13 @@ class InferenceData(Mapping[str, xr.Dataset]):
 
             import arviz as az
             idata = az.load_arviz_data("centered_eight")
-            del idata.prior  # prior group only has 1 chain currently
             idata
 
         In order to remove the third chain:
 
         .. jupyter-execute::
 
-            idata_subset = idata.sel(chain=[0, 1, 3])
+            idata_subset = idata.sel(chain=[0, 1, 3], groups="posterior_groups")
             idata_subset
 
         See Also
@@ -871,14 +926,13 @@ class InferenceData(Mapping[str, xr.Dataset]):
 
             import arviz as az
             idata = az.load_arviz_data("centered_eight")
-            del idata.prior  # prior group only has 1 chain currently
             idata
 
         In order to remove the third chain:
 
         .. jupyter-execute::
 
-            idata_subset = idata.isel(chain=[0, 1, 3])
+            idata_subset = idata.isel(chain=[0, 1, 3], groups="posterior_groups")
             idata_subset
 
         You can expand the groups and coords in each group to see how now only the chains 0, 1 and
@@ -1005,11 +1059,13 @@ class InferenceData(Mapping[str, xr.Dataset]):
         out = self if inplace else deepcopy(self)
         for group in groups:
             dataset = getattr(self, group)
-            kwarg_dict = {
-                key: value
-                for key, value in dimensions.items()
-                if not set(value).difference(dataset.dims)
-            }
+            kwarg_dict = {}
+            for key, value in dimensions.items():
+                try:
+                    if not set(value).difference(dataset.dims):
+                        kwarg_dict[key] = value
+                except TypeError:
+                    kwarg_dict[key] = value
             dataset = dataset.stack(**kwarg_dict)
             setattr(out, group, dataset)
         if inplace:

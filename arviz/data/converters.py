@@ -4,11 +4,11 @@ import xarray as xr
 
 from .base import dict_to_dataset
 from .inference_data import InferenceData
+from .io_beanmachine import from_beanmachine
 from .io_cmdstan import from_cmdstan
 from .io_cmdstanpy import from_cmdstanpy
 from .io_emcee import from_emcee
 from .io_numpyro import from_numpyro
-from .io_pymc3 import from_pymc3
 from .io_pyro import from_pyro
 from .io_pystan import from_pystan
 
@@ -22,16 +22,16 @@ def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None,
 
     Parameters
     ----------
-    obj : dict, str, np.ndarray, xr.Dataset, pystan fit, pymc3 trace
+    obj : dict, str, np.ndarray, xr.Dataset, pystan fit
         A supported object to convert to InferenceData:
             | InferenceData: returns unchanged
             | str: Attempts to load the cmdstan csv or netcdf dataset from disk
             | pystan fit: Automatically extracts data
             | cmdstanpy fit: Automatically extracts data
             | cmdstan csv-list: Automatically extracts data
-            | pymc3 trace: Automatically extracts data
             | emcee sampler: Automatically extracts data
             | pyro MCMC: Automatically extracts data
+            | beanmachine MonteCarloSamples: Automatically extracts data
             | xarray.Dataset: adds to InferenceData as only group
             | xarray.DataArray: creates an xarray dataset as the only group, gives the
                          array an arbitrary name, if name not set
@@ -87,10 +87,10 @@ def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None,
             return from_cmdstanpy(**kwargs)
         else:  # pystan or pystan3
             return from_pystan(**kwargs)
-    elif obj.__class__.__name__ == "MultiTrace":  # ugly, but doesn't make PyMC3 a requirement
-        return from_pymc3(trace=kwargs.pop(group), **kwargs)
     elif obj.__class__.__name__ == "EnsembleSampler":  # ugly, but doesn't make emcee a requirement
         return from_emcee(sampler=kwargs.pop(group), **kwargs)
+    elif obj.__class__.__name__ == "MonteCarloSamples":
+        return from_beanmachine(sampler=kwargs.pop(group), **kwargs)
     elif obj.__class__.__name__ == "MCMC" and obj.__class__.__module__.startswith("pyro"):
         return from_pyro(posterior=kwargs.pop(group), **kwargs)
     elif obj.__class__.__name__ == "MCMC" and obj.__class__.__module__.startswith("numpyro"):
@@ -121,7 +121,6 @@ def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None,
             "netcdf filename",
             "numpy array",
             "pystan fit",
-            "pymc3 trace",
             "emcee fit",
             "pyro mcmc fit",
             "numpyro mcmc fit",
@@ -148,13 +147,12 @@ def convert_to_dataset(obj, *, group="posterior", coords=None, dims=None):
 
     Parameters
     ----------
-    obj : dict, str, np.ndarray, xr.Dataset, pystan fit, pymc3 trace
+    obj : dict, str, np.ndarray, xr.Dataset, pystan fit
         A supported object to convert to InferenceData:
 
         - InferenceData: returns unchanged
         - str: Attempts to load the netcdf dataset from disk
         - pystan fit: Automatically extracts data
-        - pymc3 trace: Automatically extracts data
         - xarray.Dataset: adds to InferenceData as only group
         - xarray.DataArray: creates an xarray dataset as the only group, gives the
           array an arbitrary name, if name not set

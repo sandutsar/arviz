@@ -1,19 +1,91 @@
 # Change Log
 
-## v0.x.x Unreleased
+## v0.x.x (TBD)
 
 ### New features
-* Add `side` argument to `plot_violin` to allow single-sided violin plots ([1996](https://github.com/arviz-devs/arviz/pull/1996))
 
 ### Maintenance and fixes
-* Add exception in `az.plot_hdi` for `x` of type `np.datetime64` and `smooth=True` ([2016](https://github.com/arviz-devs/arviz/pull/2016))
-* Change `ax.plot` usage to `ax.scatter` in `plot_pair` ([1990](https://github.com/arviz-devs/arviz/pull/1990))
 
 ### Deprecation
 
 ### Documentation
-* Add translation overview to contributing guide ([2041](https://github.com/arviz-devs/arviz/pull/2041))
 
+## v0.15.1 (2023 Mar 06)
+
+### New features
+
+### Maintenance and fixes
+- Fix memory usage and improve efficiency in `from_emcee` ([2215](https://github.com/arviz-devs/arviz/pull/2215))
+- Lower pandas version needed ([2217](https://github.com/arviz-devs/arviz/pull/2217))
+
+### Deprecation
+
+### Documentation
+- Update documentation for various plots ([2208](https://github.com/arviz-devs/arviz/pull/2208))
+
+## v0.15.0 (2023 Feb 19)
+
+### New features
+- Adds Savage-Dickey density ratio plot for Bayes factor approximation. ([2037](https://github.com/arviz-devs/arviz/pull/2037), [2152](https://github.com/arviz-devs/arviz/pull/2152))
+- Add `CmdStanPySamplingWrapper` and `PyMCSamplingWrapper` classes ([2158](https://github.com/arviz-devs/arviz/pull/2158))
+- Changed dependency on netcdf4-python to h5netcdf  ([2122](https://github.com/arviz-devs/arviz/pull/2122))
+
+### Maintenance and fixes
+- Fix `reloo` outdated usage of `ELPDData` ([2158](https://github.com/arviz-devs/arviz/pull/2158))
+- plot_bpv smooth discrete data only when computing u_values ([2179](https://github.com/arviz-devs/arviz/pull/2179))
+- Fix bug when beanmachine objects lack some fields ([2154](https://github.com/arviz-devs/arviz/pull/2154))
+- Fix gap for `plot_trace` with option `kind="rank_bars"` ([2180](https://github.com/arviz-devs/arviz/pull/2180))
+- Fix `plot_lm` unsupported usage of `np.tile` ([2186](https://github.com/arviz-devs/arviz/pull/2186))
+- Update `_z_scale` to work with SciPy 1.10 ([2186](https://github.com/arviz-devs/arviz/pull/2186))
+- Fix bug in BaseLabeller when combining with with NoVarLabeller ([2200](https://github.com/arviz-devs/arviz/pull/2200))
+
+### Deprecation
+
+### Documentation
+- Add PyMC and CmdStanPy sampling wrapper examples ([2158](https://github.com/arviz-devs/arviz/pull/2158))
+- Fix docstring for plot_trace chain_prop and compact_prop parameters ([2176](https://github.com/arviz-devs/arviz/pull/2176))
+- Add video of contributing to ArviZ webinar in contributing guide ([2184](https://github.com/arviz-devs/arviz/pull/2184))
+
+## v0.14.0 (2022 Nov 15)
+
+### New features
+- Add `weight_predictions` function to allow generation of weighted predictions from two or more InfereceData with `posterior_predictive` groups and a set of weights ([2147](https://github.com/arviz-devs/arviz/pull/2147))
+- Add Savage-Dickey density ratio plot for Bayes factor approximation. ([2037](https://github.com/arviz-devs/arviz/pull/2037), [2152](https://github.com/arviz-devs/arviz/pull/2152
+- Adds rug plot for observed variables to `plot_ppc`. ([2161](https://github.com/arviz-devs/arviz/pull/2161))
+
+### Maintenance and fixes
+- Fix dimension ordering for `plot_trace` with divergences ([2151](https://github.com/arviz-devs/arviz/pull/2151))
+
+
+## v0.13.0 (2022 Oct 22)
+
+### New features
+* Add `side` argument to `plot_violin` to allow single-sided violin plots ([1996](https://github.com/arviz-devs/arviz/pull/1996))
+* Added support for Bean Machine via the function `from_beanmachine`. ([2107](https://github.com/arviz-devs/arviz/pull/2107)
+* Add support for warmup samples in `from_pystan` for PyStan 3. ([2132](https://github.com/arviz-devs/arviz/pull/2132)
+
+### Maintenance and fixes
+* Add exception in `az.plot_hdi` for `x` of type `np.datetime64` and `smooth=True` ([2016](https://github.com/arviz-devs/arviz/pull/2016))
+* Change `ax.plot` usage to `ax.scatter` in `plot_pair` ([1990](https://github.com/arviz-devs/arviz/pull/1990))
+* Example data has been moved to the [arviz_example_data](https://github.com/arviz-devs/arviz_example_data) repository and is now included using git subtree.
+  ([2096](https://github.com/arviz-devs/arviz/pull/2096) and [2105](https://github.com/arviz-devs/arviz/pull/2105))
+* Bokeh kde contour plots started to use `contourpy` package ([2104](https://github.com/arviz-devs/arviz/pull/2104))
+* Update default Bokeh markers for rcparams ([2104](https://github.com/arviz-devs/arviz/pull/2104))
+* Correctly (re)order dimensions for `bfmi` and `plot_energy` ([2126](https://github.com/arviz-devs/arviz/pull/2126))
+* Fix bug with the dimension order dependency ([2103](https://github.com/arviz-devs/arviz/pull/2103))
+* Add testing module for labeller classes ([2095](https://github.com/arviz-devs/arviz/pull/2095))
+* Skip compression for object dtype while creating a netcdf file ([2129](https://github.com/arviz-devs/arviz/pull/2129))
+* Fix issue in dim generation when default dims are present in user inputed dims ([2138](https://github.com/arviz-devs/arviz/pull/2138))
+* Save InferenceData level attrs to netcdf and zarr ([2131](https://github.com/arviz-devs/arviz/pull/2131))
+* Update tests and docs for updated example data ([2137](https://github.com/arviz-devs/arviz/pull/2137))
+* Copy coords before modifying in ppcplot ([2160](https://github.com/arviz-devs/arviz/pull/2160))
+
+### Deprecation
+* Removed `fill_last`, `contour` and `plot_kwargs` arguments from `plot_pair` function ([2085](https://github.com/arviz-devs/arviz/pull/2085))
+
+### Documentation
+* Add translation overview to contributing guide ([2041](https://github.com/arviz-devs/arviz/pull/2041))
+* Improve how to release page ([2144](https://github.com/arviz-devs/arviz/pull/2144))
 
 ## v0.12.1 (2022 May 12)
 ### New features

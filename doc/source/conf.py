@@ -38,10 +38,6 @@ arviz.Numba.disable_numba()
 # ones.
 sys.path.insert(0, os.path.abspath("../sphinxext"))
 
-thumb_directory = "example_thumbs"
-if not os.path.isdir(thumb_directory):
-    os.mkdir(thumb_directory)
-
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
@@ -63,6 +59,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_codeautolink",
     "jupyter_sphinx",
+    "sphinxcontrib.youtube",
 ]
 
 # codeautolink
@@ -98,6 +95,20 @@ myst_enable_extensions = ["colon_fence", "deflist", "dollarmath", "amsmath"]
 # copybutton config: strip console characters
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
 copybutton_prompt_is_regexp = True
+# numpydoc configuration
+autodoc_typehints = "none"
+numpydoc_xref_param_type = True
+numpydoc_xref_ignore = {
+    "of", "or", "optional", "default", "1D", "2D", "3D", "n-dimensional", "M", "N", "K",
+}
+numpydoc_xref_aliases = {
+    "Labeller": ":ref:`Labeller <labeller_api>`",
+    "ndarray": ":class:`~numpy.ndarray`",
+    "InferenceData": ":class:`~arviz.InferenceData`",
+    "matplotlib_axes": ":class:`matplotlib Axes <matplotlib.axes.Axes>`",
+    "bokeh_figure": ":class:`Bokeh Figure <bokeh.plotting.figure>`",
+
+}
 
 # The base toctree document.
 master_doc = "index"
@@ -130,7 +141,7 @@ release = version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+# language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -157,20 +168,31 @@ html_theme = "pydata_sphinx_theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
+    "logo": {
+        "image_light": "logo.png",
+        "image_dark": "logo_dark.png",
+    },
+    # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/header-links.html#fontawesome-icons
     "icon_links": [
         {
             "name": "GitHub",
             "url": "https://github.com/arviz-devs/arviz",
-            "icon": "fab fa-github-square",
+            "icon": "fa-brands fa-github",
         },
         {
             "name": "Twitter",
             "url": "https://twitter.com/arviz_devs",
-            "icon": "fab fa-twitter-square",
+            "icon": "fa-brands fa-twitter",
+        },
+        {
+            "name": "Mastodon",
+            "url": "https://bayes.club/@ArviZ",
+            "icon": "fa-brands fa-mastodon",
         },
     ],
     "navbar_start": ["navbar-logo", "navbar-version"],
-    "page_sidebar_items": ["page-toc", "edit-this-page", "donate"],
+    "header_links_before_dropdown": 7,
+    "secondary_sidebar_items": ["page-toc", "searchbox", "edit-this-page", "sourcelink", "donate"],
     "use_edit_page_button": True,
     "google_analytics_id": "G-W1G68W77YV",
     "external_links": [
@@ -185,6 +207,7 @@ html_context = {
     "default_mode": "light",
 }
 html_sidebars: Dict[str, Any] = {
+    "index": [],
     "community": ["search-field.html", "sidebar-nav-bs.html", "twitter.html"],
 }
 
@@ -192,7 +215,7 @@ html_sidebars: Dict[str, Any] = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
-html_static_path = ["_static", thumb_directory]
+html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 
 # use additional pages to add a 404 page
@@ -208,10 +231,6 @@ htmlhelp_basename = "ArviZdoc"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = "ArviZ"
-
-# The name of an image file (relative to this directory) to place at the top
-# of the sidebar.
-html_logo = "_static/logo.png"
 
 
 # The name of an image file (relative to this directory) to use as a favicon of
@@ -305,6 +324,7 @@ intersphinx_mapping = {
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
     "diataxis": ("https://diataxis.fr/", None),
     "arviz_org": ("https://www.arviz.org/en/latest/", None),
+    "python": ("https://docs.python.org/3/", None),
 }
 
 

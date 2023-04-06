@@ -1,6 +1,7 @@
+beanmachine
+torch<2.0
 emcee
 pyjags
-pymc3 @ git+https://github.com/pymc-devs/pymc3
 pystan
 cmdstanpy
 pyro-ppl>=1.0.0

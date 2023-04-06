@@ -9,12 +9,14 @@ Plots
     :toctree: generated/
 
     plot_autocorr
+    plot_bf
     plot_bpv
     plot_compare
     plot_density
     plot_dist
     plot_dist_comparison
     plot_dot
+    plot_ecdf
     plot_elpd
     plot_energy
     plot_ess
